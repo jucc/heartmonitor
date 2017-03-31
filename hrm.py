@@ -1,66 +1,71 @@
 import bluepy.btle as btle
-from datetime import datetime
-import time
+import hrmdelegate as dlgt
 
-class HRMMNotificationsDelegate(btle.DefaultDelegate):
-    """
-     Delegate class will be set to handle hrmm notifications
-     In its first version, the handler will only print values to screen
-    """
-    def __init__(self):
-        btle.DefaultDelegate.__init__(self)
-        self.t0 = time.time()
+class HRMonitor:
 
-    def handleNotification(self, cHandle, data):
-        bpm = ord(data[1])
-        print "[%.2f]"%(time.time()-self.t0), bpm
+    def __init__(self, mac):
+        """
+        Connects to the device via its mac address
+        """
+        hrm = 0
 
-
-def hrm(mac):
-    """
-    Connects to the device and registers a handler to receive notifications
-    @input[mac] device's mac address
-    """
-    hrm = 0
-
-    try:
-        hrm = btle.Peripheral(mac)
-        print "Connected to device"
-    except:
-        print "Could not connect"
-        return -1
-
-    try:
-        # read fixed ble specs for hrm service and hrmm characteristic
-        hrmid = btle.AssignedNumbers.heart_rate
-        hrmmid = btle.AssignedNumbers.heart_rate_measurement
-        cccid = btle.AssignedNumbers.client_characteristic_configuration
-
-        # query device for the service (hrm), characteristics and descriptors
-        serv = hrm.getServiceByUUID(hrmid)
-        chars = serv.getCharacteristics(hrmmid)[0]
-        desc = hrm.getDescriptors(serv.hndStart, serv.hndEnd)
-        d = [d for d in desc if d.uuid==cccid][0]
-
-        # register handler to receive notifications
-        hrm.writeCharacteristic(d.handle, '\1\0')
-        hrm.setDelegate(HRMMNotificationsDelegate())
-
-        print "Ready to receive"
-        return hrm
-
-    except:
-        print "Could not initialize"
-        hrm.disconnect()
-        return -2
+        try:
+            self.hrm = btle.Peripheral(mac)
+            print "Connected to device"
+        except:
+            print "Could not connect"
+        self.configure()
 
 
-def readhrm(hrm):
-    while(True):
-        hrm.waitForNotifications(1.5)
+    def configure(self):
+        """
+        Reads GATT specs and sets the handler for HR notifications
+        Must be called upon initialization only
+        """
+        try:
+            # read fixed ble specs for hrm service and hrmm characteristic
+            hrmid = btle.AssignedNumbers.heart_rate
+            hrmmid = btle.AssignedNumbers.heart_rate_measurement
+            cccid = btle.AssignedNumbers.client_characteristic_configuration
+
+            # query device for the service (hrm), characteristics and descriptors
+            serv = self.hrm.getServiceByUUID(hrmid)
+            chars = serv.getCharacteristics(hrmmid)[0]
+            desc = self.hrm.getDescriptors(serv.hndStart, serv.hndEnd)
+            d = [d for d in desc if d.uuid==cccid][0]
+
+            # register handler to receive notifications
+            self.hrm.writeCharacteristic(d.handle, '\1\0')
+            self.hrm.setDelegate(dlgt.HRMMNotificationsDelegate())
+
+            print "Ready to receive"
+
+        except:
+            print "Could not initialize"
+            self.hrm.disconnect()
+
+
+    def readHR(self):
+        """
+        Reads HR in an infinite loop
+        """
+        while(True):
+            self.hrm.waitForNotifications(1.5)
+
+    def readNPoints(self, n):
+        """
+        Reads N points of HR data (receives N notifications and finishes)
+        """
+        for i in range(n):
+            self.hrm.waitForNotifications(1.5)
+
+    def finish(self):
+        self.hrm.disconnect()
+
 
 if __name__ == '__main__':
 
     mac = "00:22:D0:85:88:8E"
-    polar = hrm(mac)
-    readhrm(polar)
+    polar = HRMonitor(mac)
+    polar.readNPoints(30)
+    polar.finish()
