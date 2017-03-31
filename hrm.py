@@ -17,10 +17,20 @@ class HRMMNotificationsDelegate(btle.DefaultDelegate):
 
 
 def hrm(mac):
+    """
+    Connects to the device and registers a handler to receive notifications
+    @input[mac] device's mac address
+    """
+    hrm = 0
+
     try:
         hrm = btle.Peripheral(mac)
         print "Connected to device"
+    except:
+        print "Could not connect"
+        return -1
 
+    try:
         # read fixed ble specs for hrm service and hrmm characteristic
         hrmid = btle.AssignedNumbers.heart_rate
         hrmmid = btle.AssignedNumbers.heart_rate_measurement
@@ -36,15 +46,21 @@ def hrm(mac):
         hrm.writeCharacteristic(d.handle, '\1\0')
         hrm.setDelegate(HRMMNotificationsDelegate())
 
-        # START GOING
-        while(True):
-            hrm.waitForNotifications(1.5)
+        print "Ready to receive"
+        return hrm
 
-    finally:
+    except:
+        print "Could not initialize"
         hrm.disconnect()
+        return -2
 
+
+def readhrm(hrm):
+    while(True):
+        hrm.waitForNotifications(1.5)
 
 if __name__ == '__main__':
 
-    polarmac = "00:22:D0:85:88:8E"
-    hrm(polarmac)
+    mac = "00:22:D0:85:88:8E"
+    polar = hrm(mac)
+    readhrm(polar)
