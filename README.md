@@ -1,2 +1,2 @@
 # heartmonitor
-Basic Polar H7 Heart Rate Monitor implementation with python
+Very simple code for reading heart measurements from my Polar H7 for sanity check
