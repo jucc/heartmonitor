@@ -3,10 +3,17 @@ import time
 
 polarmac = "00:22:D0:85:88:8E"
 
-# handler function definition
-def hrmmNotificationHandler(cHandle, data):
-    bpm = ord(data[1])
-    print "[%.2f]"%(time.time()-t0), bpm
+class HRMMNotificationsDelegate(btle.DefaultDelegate):
+    """
+     Delegate class will be set to handle hrmm notifications
+     In its first version, the handler will only print values to screen
+    """
+    def __init__(self):
+        btle.DefaultDelegate.__init__(self)
+
+    def handleNotification(self, cHandle, data):
+        bpm = ord(data[1])
+        print "[%.2f]"%(time.time()-t0), bpm
 
 # MAIN
 
@@ -29,10 +36,9 @@ try:
 
     # register handler to receive notifications
     hrm.writeCharacteristic(d.handle, '\1\0')
-    hrm.delegate.handleNotification = hrmmNotificationHandler
+    hrm.setDelegate(HRMMNotificationsDelegate())
 
     # START GOING
-
     t0 = time.time()
     while(True):
         hrm.waitForNotifications(1.5)
