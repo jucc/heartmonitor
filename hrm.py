@@ -61,22 +61,45 @@ class HRMonitor:
             print "Could not initialize"
             self.hrm.disconnect()
 
-    def readAndPrintHR(self):
+
+    def readHR(self):
         """
-        Prints every notification received
+        Returns a tuple with relative time and HR for the last HR received
         This is supposed to be called inside a loop
+        The full list of HRs received can still be accessed in self.bpm
         """
-        self.hrm.waitForNotifications(1.5)
-        print "[%.2f]"%(time.time()-self.t0), self.hrm.delegate.bpm[-1]
+        self.hrm.waitForNotifications(2.0)
+        hrkey = time.time()-self.t0
+        hrvalue = self.hrm.delegate.bpm[-1]
+        return (hrkey, hrvalue)
+
 
     def finish(self):
         self.hrm.disconnect()
+
+
+
+def readAndPlot(polar, n):
+
+    plt.ion() # Allows the graph to update
+    fig = plt.figure()
+    plt.axis([0,n,50,200])
+    x = list()
+    y = list()
+    for i in range(n):
+        hr = polar.readHR()
+        print "[%.2f]"%(hr[0]), hr[1]
+        x.append(hr[0])
+        y.append(hr[1])
+        plt.scatter(hr[0], hr[1])
+        plt.show()
+        plt.pause(0.0001) # Allows the graph to refresh
+
 
 
 if __name__ == '__main__':
 
     mac = "00:22:D0:85:88:8E"
     polar = HRMonitor(mac)
-    for i in range(30):
-        polar.readAndPrintHR()
+    readAndPlot(polar, 100)
     polar.finish()
