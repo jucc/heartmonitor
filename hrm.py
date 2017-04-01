@@ -1,5 +1,21 @@
 import bluepy.btle as btle
-import hrmdelegate as dlgt
+import time
+import numpy as np
+import matplotlib.pyplot as plt
+
+
+class HRMMNotificationsDelegate(btle.DefaultDelegate):
+    """
+     Delegate class will be set to handle hrmm notifications
+     When notifications arrive, the HR value will be stored into bpm variable
+    """
+    def __init__(self):
+        btle.DefaultDelegate.__init__(self)
+        self.bpm = []
+
+    def handleNotification(self, cHandle, data):
+        self.bpm.append(ord(data[1]))
+
 
 class HRMonitor:
 
@@ -36,7 +52,8 @@ class HRMonitor:
 
             # register handler to receive notifications
             self.hrm.writeCharacteristic(d.handle, '\1\0')
-            self.hrm.setDelegate(dlgt.HRMMNotificationsDelegate())
+            self.hrm.setDelegate(HRMMNotificationsDelegate())
+            self.t0 = time.time()
 
             print "Ready to receive"
 
@@ -44,20 +61,13 @@ class HRMonitor:
             print "Could not initialize"
             self.hrm.disconnect()
 
-
-    def readHR(self):
+    def readAndPrintHR(self):
         """
-        Reads HR in an infinite loop
+        Prints every notification received
+        This is supposed to be called inside a loop
         """
-        while(True):
-            self.hrm.waitForNotifications(1.5)
-
-    def readNPoints(self, n):
-        """
-        Reads N points of HR data (receives N notifications and finishes)
-        """
-        for i in range(n):
-            self.hrm.waitForNotifications(1.5)
+        self.hrm.waitForNotifications(1.5)
+        print "[%.2f]"%(time.time()-self.t0), self.hrm.delegate.bpm[-1]
 
     def finish(self):
         self.hrm.disconnect()
@@ -67,5 +77,6 @@ if __name__ == '__main__':
 
     mac = "00:22:D0:85:88:8E"
     polar = HRMonitor(mac)
-    polar.readNPoints(30)
+    for i in range(30):
+        polar.readAndPrintHR()
     polar.finish()
